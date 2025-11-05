@@ -1,0 +1,8 @@
+{
+  "name": "Includify",
+  "description": "Designing Digital Spaces for Every Mind. An accessibility-focused application that simplifies text using AI and provides tools like dyslexia-friendly fonts, focus mode, and text-to-speech to make content more readable and understandable.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
