@@ -54,9 +54,19 @@ const SignUpPage: React.FC<SignUpPageProps> = ({ onSignUp, onNavigateToSignIn, o
     try {
       const user = await signupWithEmail(email, password, name);
       console.log('SignUpPage: email signup success ->', { uid: user.uid, email: user.email });
-      // Inform parent (you keep parent API as onSignUp())
-      try { onSignUp(); } catch (e) { console.warn('onSignUp threw', e); }
-      // Do NOT forcibly navigate here — let AuthProvider / parent redirect when onAuthStateChanged fires
+
+      // Inform parent (expecting a navigation callback)
+      if (typeof onSignUp === 'function') {
+        console.log('SignUpPage: calling onSignUp() after email signup');
+        try {
+          // await in case parent does something async (safe even if sync)
+          await Promise.resolve(onSignUp());
+        } catch (err) {
+          console.warn('SignUpPage: onSignUp threw (email)', err);
+        }
+      } else {
+        console.warn('SignUpPage: onSignUp is not a function', onSignUp);
+      }
     } catch (err: unknown) {
       console.error('SignUpPage: signup error', err);
       const e = err as any;
@@ -77,24 +87,36 @@ const SignUpPage: React.FC<SignUpPageProps> = ({ onSignUp, onNavigateToSignIn, o
     try {
       const user = await signinWithGooglePopup();
       console.log('SignUpPage: Google popup success ->', { uid: user.uid, email: user.email });
-      try { onSignUp(); } catch (e) { console.warn('onSignUp threw', e); }
-      // don't navigate here — let auth observer / parent handle redirect
+
+      if (typeof onSignUp === 'function') {
+        console.log('SignUpPage: calling onSignUp() after Google popup');
+        try {
+          await Promise.resolve(onSignUp());
+        } catch (err) {
+          console.warn('SignUpPage: onSignUp threw (google popup)', err);
+        }
+      } else {
+        console.warn('SignUpPage: onSignUp is not a function', onSignUp);
+      }
     } catch (err: any) {
       console.warn('SignUpPage: Google popup error ->', err);
       // If user closed the popup or it was blocked, fallback to redirect flow
       if (err?.code === 'auth/popup-closed-by-user' || err?.code === 'auth/popup-blocked') {
         try {
           console.log('SignUpPage: starting redirect fallback for Google sign-in');
-          await signinWithGoogleRedirect(); // this will navigate to Google and then back
+          await signinWithGoogleRedirect(); // this navigates away to Google and will return to your app
+          // If redirect starts, the browser will leave this page so we don't need to set loading here.
+          return;
         } catch (redirErr: any) {
           console.error('SignUpPage: redirect start failed', redirErr);
           setError(redirErr?.message ?? 'Redirect sign-in failed');
-          setLoading(false);
         }
       } else {
         setError(err?.message ?? 'Google sign-up failed');
-        setLoading(false);
       }
+    } finally {
+      // ensure we always clear loading when we remain on this page
+      setLoading(false);
     }
   };
 
